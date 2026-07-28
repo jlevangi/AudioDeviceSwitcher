@@ -1,13 +1,15 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
 
 jobs:
-  build:
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-
+  test:
     runs-on: windows-latest
-
     env:
       PLATFORM: x64
       CONFIGURATION: Release
@@ -15,85 +17,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: '0'
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Add msbuild to PATH
+      - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
-
-      - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
-        with:
-          sdk-version: 18362
-
-      - name: Create Certificate
-        env:
-          CERTIFICATE: ${{ secrets.CERTIFICATE }}
-        run: ./build create-certificate
-
-      - name: Install Nerdbank.GitVersioning
-        run: dotnet tool install -g nbgv
-
-      - name: Generate version
-        shell: pwsh
-        run: |
-          $simpleVersion = dotnet nbgv get-version -v SimpleVersion
-          $nugetVersion = dotnet nbgv get-version -v NuGetPackageVersion
-          $assemblyVersion = dotnet nbgv get-version -v AssemblyVersion
-          $fileVersion = dotnet nbgv get-version -v AssemblyFileVersion
-          $infoVersion = dotnet nbgv get-version -v InformationalVersion
-          echo "NBGV_SimpleVersion=$simpleVersion" >> $env:GITHUB_ENV
-          echo "NBGV_version=$nugetVersion" >> $env:GITHUB_ENV
-          echo "NBGV_AssemblyVersion=$assemblyVersion" >> $env:GITHUB_ENV
-          echo "NBGV_AssemblyFileVersion=$fileVersion" >> $env:GITHUB_ENV
-          echo "NBGV_AssemblyInformationalVersion=$infoVersion" >> $env:GITHUB_ENV
-          Write-Host "Version: $simpleVersion"
-
-      - name: Write version
-        run: ./build set-package-version
-
-      - name: Install Audio Devices
-        run: ./build install-audio-devices
 
       - name: Restore
         run: ./build restore
 
       - name: Test
         run: ./build test
-
-      - name: Build Package
-        run: ./build
-
-      - name: Upload installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: AudioDeviceSwitcher ${{ env.NBGV_version }}
-          path: AppPackages/AudioDeviceSwitcher (Package)_${{ env.NBGV_SimpleVersion }}.0_Test/*.msixbundle
-
-      - name: Upload certificate
-        uses: actions/upload-artifact@v4
-        with:
-          name: Certificate
-          path: AppPackages/AudioDeviceSwitcher (Package)_${{ env.NBGV_SimpleVersion }}.0_Test/*.cer
-
-      - name: Remove _Test folder
-        run: Remove-Item AppPackages/*_Test -Recurse
-
-      - name: Upload bundle for ms store
-        uses: actions/upload-artifact@v4
-        with:
-          name: Upload
-          path: AppPackages/*.msixupload
-
-      - name: Publish to Windows Store
-        uses: isaacrlevin/windows-store-action@1.0
-        if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          tenant-id: ${{ secrets.AZURE_AD_TENANT_ID }}
-          client-id: ${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}
-          client-secret: ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
-          app-id: ${{ secrets.STORE_APP_ID }}
-          package-path: "AppPackages"
