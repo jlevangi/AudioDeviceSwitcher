@@ -53,7 +53,7 @@ jobs:
           -p:PublishSingleFile=true
           -p:SelfContained=true
           -p:WindowsAppSDKSelfContained=true
-          -p:RuntimeIdentifier=win10-${{ matrix.platform }}
+          -p:RuntimeIdentifier=win-${{ matrix.platform }}
           -p:PublishTrimmed=false
           -p:AppxPackageSigningEnabled=false
           -t:Publish
@@ -64,7 +64,7 @@ jobs:
         run: |
           $publishDir = Get-ChildItem "src/AudioDeviceSwitcher/bin" -Directory -Recurse |
             Where-Object Name -eq publish |
-            Where-Object FullName -match "win10-${{ matrix.platform }}" |
+            Where-Object FullName -match "win-${{ matrix.platform }}" |
             Select-Object -First 1
           if (-not $publishDir) { throw "Publish directory not found" }
           New-Item dist -ItemType Directory -Force | Out-Null
