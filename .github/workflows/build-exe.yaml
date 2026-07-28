@@ -1,0 +1,96 @@
+name: Build EXE
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64, arm64]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Windows SDK
+        uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
+        with:
+          sdk-version: 18362
+
+      - name: Install Nerdbank.GitVersioning
+        run: dotnet tool install -g nbgv
+
+      - name: Generate version
+        uses: aarnott/nbgv@v0.3
+        with:
+          setAllVars: true
+
+      - name: Restore
+        run: msbuild -v:m -nologo -p:Configuration=Release -p:Platform=${{ matrix.platform }} -t:restore
+
+      - name: Build
+        run: >
+          msbuild -v:m -nologo
+          -p:Configuration=Release
+          -p:Platform=${{ matrix.platform }}
+          -p:PublishSingleFile=true
+          -p:SelfContained=true
+          -p:WindowsAppSDKSelfContained=true
+          -p:RuntimeIdentifier=win10-${{ matrix.platform }}
+          -p:PublishTrimmed=false
+          -p:AppxPackageSigningEnabled=false
+          src/AudioDeviceSwitcher/AudioDeviceSwitcher.csproj
+
+      - name: Find EXE
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path "src/AudioDeviceSwitcher/bin" -Recurse -Filter "AudioDeviceSwitcher.exe" |
+            Select-Object -First 1
+          if (-not $exe) {
+            Write-Error "EXE not found"
+            exit 1
+          }
+          Write-Host "Found EXE: $($exe.FullName)"
+          $outDir = "release/${{ matrix.platform }}"
+          New-Item -ItemType Directory -Force -Path $outDir
+          Copy-Item -Path $exe.DirectoryName -Destination $outDir -Recurse -Force
+          echo "EXE_PATH=$outDir" >> $env:GITHUB_ENV
+
+      - name: Create ZIP
+        shell: pwsh
+        run: |
+          $version = "${{ env.NBGV_SimpleVersion }}" -replace '\.', '-'
+          $zipName = "AudioDeviceSwitcher-${{ matrix.platform }}-v${version}.zip"
+          Compress-Archive -Path "${{ env.EXE_PATH }}/*" -DestinationPath "dist/$zipName"
+          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudioDeviceSwitcher-${{ matrix.platform }}
+          path: dist/*.zip
+
+      - name: Upload release asset
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
