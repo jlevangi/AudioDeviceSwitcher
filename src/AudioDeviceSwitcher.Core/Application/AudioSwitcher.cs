@@ -3,6 +3,7 @@
 namespace AudioDeviceSwitcher;
 
 using System.Collections.Generic;
+using System;
 using System.Diagnostics.CodeAnalysis;
 using AudioDeviceSwitcher.Core.Application;
 
@@ -205,7 +206,7 @@ public sealed partial class AudioSwitcher
 
     private bool TryGetCommand(string name, [MaybeNullWhen(false)] out Command command)
     {
-        command = Commands.FirstOrDefault(x => x.Name.ToLower() == name.ToLower());
+        command = Commands.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
         return command != null;
     }
 

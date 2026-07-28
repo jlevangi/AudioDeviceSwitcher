@@ -80,7 +80,7 @@ public sealed partial class App : Application, IApp
             && AudioSwitcher.RunInBackground;
 
         if (background)
-            _window.RunInBackround();
+            _window.RunInBackground();
         else
             _window.Activate();
 

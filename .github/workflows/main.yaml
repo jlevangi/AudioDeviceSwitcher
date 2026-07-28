@@ -6,19 +6,24 @@ jobs:
   build:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
 
-    runs-on: windows-2022
+    runs-on: windows-latest
 
     env:
       PLATFORM: x64
       CONFIGURATION: Release
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: '0'
  
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1.0.2
+        uses: microsoft/setup-msbuild@v2
          
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
         with:
@@ -30,7 +35,7 @@ jobs:
         run: ./build create-certificate
         
       - name: Generate version
-        uses: aarnott/nbgv@master
+        uses: aarnott/nbgv@v0.3
         with:
           setAllVars: true
 
@@ -50,13 +55,13 @@ jobs:
         run: ./build
 
       - name: Upload installer
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: AudioDeviceSwitcher ${{ env.NBGV_version }}
           path: AppPackages/AudioDeviceSwitcher (Package)_${{ env.NBGV_SimpleVersion }}.0_Test/*.msixbundle
 
       - name: Upload certificate
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: Certificate
           path: AppPackages/AudioDeviceSwitcher (Package)_${{ env.NBGV_SimpleVersion }}.0_Test/*.cer
@@ -65,7 +70,7 @@ jobs:
         run: Remove-Item AppPackages/*_Test -Recurse
 
       - name: Upload bundle for ms store
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: Upload
           path: AppPackages/*.msixupload

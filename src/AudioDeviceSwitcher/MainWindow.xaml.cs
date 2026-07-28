@@ -33,7 +33,7 @@ public sealed partial class MainWindow : DesktopWindow
     public UIElement TitleBar => CustomTitleBar;
     internal static MainWindow? Instance { get; private set; }
 
-    public void RunInBackround()
+    public void RunInBackground()
     {
         Hide();
         ShellIcon.Create();
