@@ -35,20 +35,16 @@ jobs:
         run: ./build create-certificate
 
       - name: Install Nerdbank.GitVersioning
-        shell: pwsh
-        run: |
-          dotnet tool install -g nbgv
-          $toolPath = "$env:USERPROFILE\.dotnet\tools"
-          echo "$toolPath" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+        run: dotnet tool install -g nbgv
 
       - name: Generate version
         shell: pwsh
         run: |
-          $simpleVersion = & nbgv get-version -v SimpleVersion
-          $nugetVersion = & nbgv get-version -v NuGetPackageVersion
-          $assemblyVersion = & nbgv get-version -v AssemblyVersion
-          $fileVersion = & nbgv get-version -v AssemblyFileVersion
-          $infoVersion = & nbgv get-version -v InformationalVersion
+          $simpleVersion = dotnet nbgv get-version -v SimpleVersion
+          $nugetVersion = dotnet nbgv get-version -v NuGetPackageVersion
+          $assemblyVersion = dotnet nbgv get-version -v AssemblyVersion
+          $fileVersion = dotnet nbgv get-version -v AssemblyFileVersion
+          $infoVersion = dotnet nbgv get-version -v InformationalVersion
           echo "NBGV_SimpleVersion=$simpleVersion" >> $env:GITHUB_ENV
           echo "NBGV_version=$nugetVersion" >> $env:GITHUB_ENV
           echo "NBGV_AssemblyVersion=$assemblyVersion" >> $env:GITHUB_ENV
