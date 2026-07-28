@@ -50,10 +50,13 @@ jobs:
           msbuild -v:m -nologo
           -p:Configuration=Release
           -p:Platform=${{ matrix.platform }}
+          -p:RuntimeIdentifier=win-${{ matrix.platform }}
+          -p:PublishDir=${{ github.workspace }}\artifacts\${{ matrix.platform }}\
           -p:PublishSingleFile=true
+          -p:AppPublishSingleFile=true
+          -p:UseAppHost=true
           -p:SelfContained=true
           -p:WindowsAppSDKSelfContained=true
-          -p:RuntimeIdentifier=win-${{ matrix.platform }}
           -p:PublishTrimmed=false
           -p:AppxPackageSigningEnabled=false
           -t:Publish
@@ -62,13 +65,12 @@ jobs:
       - name: Package EXE
         shell: pwsh
         run: |
-          $exe = Get-ChildItem "src/AudioDeviceSwitcher/bin" -File -Recurse -Filter AudioDeviceSwitcher.exe |
-            Where-Object FullName -match "win-${{ matrix.platform }}" |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -First 1
-          if (-not $exe) { throw "AudioDeviceSwitcher.exe not found" }
-          $outputDir = $exe.Directory.FullName
-          Write-Host "Packaging $outputDir"
+          $outputDir = "artifacts/${{ matrix.platform }}"
+          $exe = Join-Path $outputDir "AudioDeviceSwitcher.exe"
+          if (-not (Test-Path $exe)) {
+            Get-ChildItem $outputDir -Recurse | Select-Object FullName
+            throw "AudioDeviceSwitcher.exe not found in $outputDir"
+          }
           New-Item dist -ItemType Directory -Force | Out-Null
           $zip = "dist/AudioDeviceSwitcher-${{ matrix.platform }}-v$env:ARTIFACT_VERSION.zip"
           Compress-Archive -Path "$outputDir/*" -DestinationPath $zip

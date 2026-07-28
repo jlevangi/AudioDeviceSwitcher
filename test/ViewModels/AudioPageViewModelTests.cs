@@ -12,6 +12,7 @@ public sealed partial class AudioPageViewModelTests : ViewModelTest
 
     [InlineData(AudioDeviceClass.Render)]
     [InlineData(AudioDeviceClass.Capture)]
+    [Trait("Category", "Hardware")]
     [UITheory]
     public async Task Main(AudioDeviceClass type)
     {
@@ -137,6 +138,7 @@ public sealed partial class AudioPageViewModelTests : ViewModelTest
         Assert.Equal(model.SelectedCommand.Hotkey, model.Hotkey);
     }
 
+    [Trait("Category", "Hardware")]
     [UIFact]
     async Task ShowDisabledDevice()
     {
@@ -164,6 +166,7 @@ public sealed partial class AudioPageViewModelTests : ViewModelTest
         }
     }
 
+    [Trait("Category", "Clipboard")]
     [UIFact]
     public async Task CopyCommandToClipboard()
     {

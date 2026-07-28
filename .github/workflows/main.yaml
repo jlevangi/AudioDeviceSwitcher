@@ -28,4 +28,4 @@ jobs:
         run: dotnet restore test/AudioDeviceSwitcher.Tests.csproj -p:Platform=x64
 
       - name: Test
-        run: dotnet test test/AudioDeviceSwitcher.Tests.csproj --no-restore --configuration Release -p:Platform=x64 --logger "console;verbosity=detailed"
+        run: dotnet test test/AudioDeviceSwitcher.Tests.csproj --no-restore --configuration Release -p:Platform=x64 --filter "Category!=Hardware&Category!=Clipboard" --logger "console;verbosity=detailed"
