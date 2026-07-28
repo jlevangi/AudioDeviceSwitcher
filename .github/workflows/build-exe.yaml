@@ -8,10 +8,14 @@ on:
     branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
         platform: [x64, arm64]
 
@@ -28,33 +32,20 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Setup Windows SDK
-        uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
-        with:
-          sdk-version: 18362
-
-      - name: Install Nerdbank.GitVersioning
-        run: dotnet tool install -g nbgv
-
-      - name: Generate version
+      - name: Set artifact version
         shell: pwsh
         run: |
-          $simpleVersion = dotnet nbgv get-version -v SimpleVersion
-          $nugetVersion = dotnet nbgv get-version -v NuGetPackageVersion
-          $assemblyVersion = dotnet nbgv get-version -v AssemblyVersion
-          $fileVersion = dotnet nbgv get-version -v AssemblyFileVersion
-          $infoVersion = dotnet nbgv get-version -v InformationalVersion
-          echo "NBGV_SimpleVersion=$simpleVersion" >> $env:GITHUB_ENV
-          echo "NBGV_version=$nugetVersion" >> $env:GITHUB_ENV
-          echo "NBGV_AssemblyVersion=$assemblyVersion" >> $env:GITHUB_ENV
-          echo "NBGV_AssemblyFileVersion=$fileVersion" >> $env:GITHUB_ENV
-          echo "NBGV_AssemblyInformationalVersion=$infoVersion" >> $env:GITHUB_ENV
-          Write-Host "Version: $simpleVersion"
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $env:GITHUB_REF_NAME.TrimStart('v')
+          } else {
+            "1.1.0-ci.$env:GITHUB_RUN_NUMBER"
+          }
+          "ARTIFACT_VERSION=$version" >> $env:GITHUB_ENV
 
       - name: Restore
         run: msbuild -v:m -nologo -p:Configuration=Release -p:Platform=${{ matrix.platform }} -t:restore
 
-      - name: Build
+      - name: Publish
         run: >
           msbuild -v:m -nologo
           -p:Configuration=Release
@@ -65,30 +56,20 @@ jobs:
           -p:RuntimeIdentifier=win10-${{ matrix.platform }}
           -p:PublishTrimmed=false
           -p:AppxPackageSigningEnabled=false
+          -t:Publish
           src/AudioDeviceSwitcher/AudioDeviceSwitcher.csproj
 
-      - name: Find EXE
+      - name: Package EXE
         shell: pwsh
         run: |
-          $exe = Get-ChildItem -Path "src/AudioDeviceSwitcher/bin" -Recurse -Filter "AudioDeviceSwitcher.exe" |
+          $publishDir = Get-ChildItem "src/AudioDeviceSwitcher/bin" -Directory -Recurse |
+            Where-Object Name -eq publish |
+            Where-Object FullName -match "win10-${{ matrix.platform }}" |
             Select-Object -First 1
-          if (-not $exe) {
-            Write-Error "EXE not found"
-            exit 1
-          }
-          Write-Host "Found EXE: $($exe.FullName)"
-          $outDir = "release/${{ matrix.platform }}"
-          New-Item -ItemType Directory -Force -Path $outDir
-          Copy-Item -Path $exe.DirectoryName -Destination $outDir -Recurse -Force
-          echo "EXE_PATH=$outDir" >> $env:GITHUB_ENV
-
-      - name: Create ZIP
-        shell: pwsh
-        run: |
-          $version = "${{ env.NBGV_SimpleVersion }}" -replace '\.', '-'
-          $zipName = "AudioDeviceSwitcher-${{ matrix.platform }}-v${version}.zip"
-          Compress-Archive -Path "${{ env.EXE_PATH }}/*" -DestinationPath "dist/$zipName"
-          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+          if (-not $publishDir) { throw "Publish directory not found" }
+          New-Item dist -ItemType Directory -Force | Out-Null
+          $zip = "dist/AudioDeviceSwitcher-${{ matrix.platform }}-v$env:ARTIFACT_VERSION.zip"
+          Compress-Archive -Path "$($publishDir.FullName)/*" -DestinationPath $zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -102,5 +83,3 @@ jobs:
         with:
           files: dist/*.zip
           draft: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
