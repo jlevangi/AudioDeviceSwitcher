@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: '0'
- 
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -24,7 +24,7 @@ jobs:
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
-         
+
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
         with:
           sdk-version: 18362
@@ -33,15 +33,32 @@ jobs:
         env:
           CERTIFICATE: ${{ secrets.CERTIFICATE }}
         run: ./build create-certificate
-        
+
+      - name: Install Nerdbank.GitVersioning
+        shell: pwsh
+        run: |
+          dotnet tool install -g nbgv
+          $toolPath = "$env:USERPROFILE\.dotnet\tools"
+          echo "$toolPath" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+
       - name: Generate version
-        uses: aarnott/nbgv@v0.3
-        with:
-          setAllVars: true
+        shell: pwsh
+        run: |
+          $simpleVersion = & nbgv get-version -v SimpleVersion
+          $nugetVersion = & nbgv get-version -v NuGetPackageVersion
+          $assemblyVersion = & nbgv get-version -v AssemblyVersion
+          $fileVersion = & nbgv get-version -v AssemblyFileVersion
+          $infoVersion = & nbgv get-version -v InformationalVersion
+          echo "NBGV_SimpleVersion=$simpleVersion" >> $env:GITHUB_ENV
+          echo "NBGV_version=$nugetVersion" >> $env:GITHUB_ENV
+          echo "NBGV_AssemblyVersion=$assemblyVersion" >> $env:GITHUB_ENV
+          echo "NBGV_AssemblyFileVersion=$fileVersion" >> $env:GITHUB_ENV
+          echo "NBGV_AssemblyInformationalVersion=$infoVersion" >> $env:GITHUB_ENV
+          Write-Host "Version: $simpleVersion"
 
       - name: Write version
         run: ./build set-package-version
-        
+
       - name: Install Audio Devices
         run: ./build install-audio-devices
 
@@ -65,7 +82,7 @@ jobs:
         with:
           name: Certificate
           path: AppPackages/AudioDeviceSwitcher (Package)_${{ env.NBGV_SimpleVersion }}.0_Test/*.cer
-          
+
       - name: Remove _Test folder
         run: Remove-Item AppPackages/*_Test -Recurse
 
