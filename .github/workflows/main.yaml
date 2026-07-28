@@ -24,11 +24,8 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
       - name: Restore
-        run: ./build restore
+        run: dotnet restore test/AudioDeviceSwitcher.Tests.csproj -p:Platform=x64
 
       - name: Test
-        run: ./build test
+        run: dotnet test test/AudioDeviceSwitcher.Tests.csproj --no-restore --configuration Release -p:Platform=x64 --logger "console;verbosity=detailed"

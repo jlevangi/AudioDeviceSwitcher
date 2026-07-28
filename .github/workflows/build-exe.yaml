@@ -62,14 +62,16 @@ jobs:
       - name: Package EXE
         shell: pwsh
         run: |
-          $publishDir = Get-ChildItem "src/AudioDeviceSwitcher/bin" -Directory -Recurse |
-            Where-Object Name -eq publish |
+          $exe = Get-ChildItem "src/AudioDeviceSwitcher/bin" -File -Recurse -Filter AudioDeviceSwitcher.exe |
             Where-Object FullName -match "win-${{ matrix.platform }}" |
+            Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
-          if (-not $publishDir) { throw "Publish directory not found" }
+          if (-not $exe) { throw "AudioDeviceSwitcher.exe not found" }
+          $outputDir = $exe.Directory.FullName
+          Write-Host "Packaging $outputDir"
           New-Item dist -ItemType Directory -Force | Out-Null
           $zip = "dist/AudioDeviceSwitcher-${{ matrix.platform }}-v$env:ARTIFACT_VERSION.zip"
-          Compress-Archive -Path "$($publishDir.FullName)/*" -DestinationPath $zip
+          Compress-Archive -Path "$outputDir/*" -DestinationPath $zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
